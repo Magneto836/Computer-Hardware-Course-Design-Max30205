@@ -1,0 +1,53 @@
+/*
+ * pwm.c
+ *
+ *  Created on: 2024年3月19日
+ *      Author: zdk18
+ */
+
+#include <stdio.h>
+#include "xparameters.h"
+#include "xil_io.h"
+#include "sleep.h"
+#include "xil_types.h"
+
+#include "xgpiops.h"
+
+
+int main()
+{
+
+	int XStatus;
+	int num = 0 ;
+
+	printf("Hello World2");
+
+/*
+	Xil_Out32(XPAR_PWM_CAR_0_S00_AXI_BASEADDR,200);
+	Xil_Out32(XPAR_PWM_CAR_0_S00_AXI_BASEADDR+4,100);
+	Xil_Out32(XPAR_PWM_CAR_0_S00_AXI_BASEADDR+8,20000);
+	Xil_Out32(XPAR_PWM_CAR_0_S00_AXI_BASEADDR+12,10000);
+
+	*/
+	int num2=0;
+	int i2c_start = 1 ;
+	Xil_Out32(XPAR_MAX30205539L_0_S00_AXI_BASEADDR,i2c_start);
+	while(1){
+
+
+		usleep(1000);
+
+		num = Xil_In16(XPAR_MAX30205539L_0_S00_AXI_BASEADDR+4);
+
+
+
+		printf("Start:    ");
+		printf("%f\n",num*0.00390625);
+
+		}
+
+	
+	return 0 ;
+
+}
+

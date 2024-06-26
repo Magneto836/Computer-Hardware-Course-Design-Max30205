@@ -1,0 +1,280 @@
+`timescale 1ns / 1ps
+module iic_sim;
+reg clk;    //系统时钟
+reg rst_n; //复位信号
+//reg rd_en; //读使能
+//reg [7:0]rd_address;   //读地址
+reg i2c_start;  
+wire i2c_scl;     
+wire i2c_sda;   
+wire [15:0]rd_data;    //读数据输出
+//wire i2c_end;     
+//wire i2c_clk ;      
+
+//生成复位信号
+initial
+begin
+	rst_n = 0;
+	#30
+	rst_n  =1;
+end
+
+
+/*
+initial
+begin
+    #50
+	rd_en = 1;	
+end
+
+*/
+
+
+initial
+begin
+    #70
+	i2c_start = 1;	
+end
+
+/*
+//读地址
+initial
+begin
+	
+	rd_address  = 8'b1000_0000;
+end
+
+*/
+
+//生成时钟，周期为20ns
+initial
+begin
+	clk = 0;
+	forever
+	#10
+	clk = ~clk;
+end
+
+initial
+begin
+
+        #37010 // 等待37us+10ns
+        force i2c_sda = 1'b0; // 设置ACK为0
+        #4000
+        release i2c_sda;
+        #32000 // 
+        force i2c_sda = 1'b0;
+        #4000
+        release i2c_sda;
+        #36000
+        force i2c_sda = 1'b0;
+        #4000
+        release i2c_sda;
+        
+        
+        
+        //117us + 10ns
+ 
+        force i2c_sda = 1'b1;
+        #4000
+        release i2c_sda;
+        
+        force i2c_sda = 1'b0 ;
+        #4000
+        release i2c_sda;
+        
+         
+        force i2c_sda = 1'b1;
+        #4000
+        release i2c_sda;
+        
+        force i2c_sda = 1'b0 ;
+        #4000
+        release i2c_sda;
+       
+       force i2c_sda = 1'b1;
+       #4000
+       release i2c_sda;
+       
+       force i2c_sda = 1'b0 ;
+       #4000
+       release i2c_sda;
+       
+       force i2c_sda = 1'b1;
+       #4000
+       release i2c_sda;
+       
+       force i2c_sda = 1'b0 ;
+       #4000
+       release i2c_sda;
+       
+       
+       //ACK4 117+8*4=149us10ns
+       force i2c_sda = 1'b0;
+       #4000
+       release i2c_sda;
+       
+       //低  153us10ns
+       force i2c_sda = 1'b0;
+       #4000
+       release i2c_sda;
+        
+       force i2c_sda = 1'b1;
+       #4000
+       release i2c_sda;
+       
+       force i2c_sda = 1'b0 ;
+       #4000
+       release i2c_sda;
+       
+        
+       force i2c_sda = 1'b1;
+       #4000
+       release i2c_sda;
+       
+       force i2c_sda = 1'b0 ;
+       #4000
+       release i2c_sda;
+       
+       force i2c_sda = 1'b1;
+       #4000
+       release i2c_sda;
+       
+       force i2c_sda = 1'b0 ;
+       #4000
+       release i2c_sda;
+        
+         
+        force i2c_sda = 1'b1;
+        #4000
+        release i2c_sda;
+        
+        //结束时为153+4*8=185us10ns
+        
+        #56000
+        
+        //再次开始为241us10ns
+        
+           force i2c_sda = 1'b0; // 设置ACK
+        #4000                         
+        release i2c_sda;              
+        #32000 //                     
+        force i2c_sda = 1'b0;         
+        #4000                         
+        release i2c_sda;              
+        #36000                        
+        force i2c_sda = 1'b0;         
+        #4000                         
+        release i2c_sda;              
+                                      
+                                      
+                                      
+        //117us + 10ns                
+                                      
+        force i2c_sda = 1'b0;         
+        #4000                         
+        release i2c_sda;              
+                                      
+        force i2c_sda = 1'b0 ;        
+        #4000                         
+        release i2c_sda;              
+                                      
+                                      
+        force i2c_sda = 1'b0;         
+        #4000                         
+        release i2c_sda;              
+                                      
+        force i2c_sda = 1'b0 ;        
+        #4000                         
+        release i2c_sda;              
+                                      
+       force i2c_sda = 1'b1;          
+       #4000                          
+       release i2c_sda;               
+                                      
+       force i2c_sda = 1'b1 ;         
+       #4000                          
+       release i2c_sda;               
+                                      
+       force i2c_sda = 1'b1;          
+       #4000                          
+       release i2c_sda;               
+                                      
+       force i2c_sda = 1'b1 ;         
+       #4000                          
+       release i2c_sda;               
+                                      
+                                      
+       //ACK4 117+8*4=149us10ns       
+       force i2c_sda = 1'b0;          
+       #4000                          
+       release i2c_sda;               
+                                      
+       //低  153us10ns                 
+       force i2c_sda = 1'b0;          
+       #4000                          
+       release i2c_sda;               
+                                      
+       force i2c_sda = 1'b1;          
+       #4000                          
+       release i2c_sda;               
+                                      
+       force i2c_sda = 1'b0 ;         
+       #4000                          
+       release i2c_sda;               
+                                      
+                                      
+       force i2c_sda = 1'b1;          
+       #4000                          
+       release i2c_sda;               
+                                      
+       force i2c_sda = 1'b0 ;         
+       #4000                          
+       release i2c_sda;               
+                                      
+       force i2c_sda = 1'b0;          
+       #4000                          
+       release i2c_sda;               
+                                      
+       force i2c_sda = 1'b0 ;         
+       #4000                          
+       release i2c_sda;               
+                                      
+                                      
+        force i2c_sda = 1'b1;         
+        #4000                         
+        release i2c_sda;              
+        
+        
+        
+        
+        
+        
+    end
+
+
+
+
+
+
+
+
+
+
+
+
+ IIC_ctrl u1(
+        .clk(clk),
+        .rst(rst_n),
+       // .rd_en(rd_en),       
+       // .rd_address(rd_address),                             
+        .i2c_start(i2c_start),    
+         .i2c_scl(i2c_scl),      
+         .i2c_sda(i2c_sda),     
+         .rd_data(rd_data)
+        // .i2c_end(i2c_end)    
+        // .i2c_clk(i2c_clk)       
+
+    );
+    
+endmodule

@@ -1,0 +1,355 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 2024/05/18 13:13:38
+// Design Name: 
+// Module Name: IIC
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module IIC_ctrl(
+    //global clock
+    input wire clk,
+    input wire rst,
+    
+    //read interface
+   // input rd_en,//读使能
+    //input [7:0]rd_address,   //读地址应该是八位
+
+    input wire i2c_start,
+    //iic interface
+    output reg i2c_scl,
+    inout wire i2c_sda,
+    output reg [15:0]rd_data
+    
+    //output reg i2c_end
+    //output reg i2c_clk
+
+    );
+
+reg  [7:0] rd_datahigh_reg;
+reg  [7:0] rd_datalow_reg;
+reg [3:0]state;
+reg cnt_i2c_clk_en;
+reg sda_out;
+reg ack;
+
+
+reg [7:0] cnt_clk;
+
+reg [1:0] cnt_i2c_clk;
+reg [2:0] cnt_bit;
+wire sda_en;
+reg sda_in;
+
+reg i2c_end;
+reg i2c_clk;
+wire rd_en;
+assign rd_en = i2c_start;
+
+
+
+//  时钟
+parameter syscl = 100_000_000;    //系统时钟 100MHz
+parameter sclcl = 500_000;        //总线时钟500kHz
+parameter DEVICE_ADDR= 7'b1001_000;    //假定器件地址为 90h (任何一个地址最后一位都是0，无需考虑)
+parameter POINTER_ADDR = 8'b0000_0000;      // 温度地址为00h
+parameter cntclkmax = syscl/sclcl/8;     // 25
+
+
+//   状态机
+ parameter 
+       IDLE          = 4'b00,
+       START1        = 4'd01,
+       SENDADDR1     = 4'd02,
+       ACK1          = 4'd03,
+       SENDPOINTER   = 4'd04,
+       ACK2          = 4'd05,
+       RESTART       = 4'd06,
+       SENDADDR2     = 4'd07,
+       ACK3          = 4'd08,
+       READHIGH      = 4'd09,
+       ACKM          = 4'd10,
+       READLOW       = 4'd11,
+       NACK          = 4'd12,
+       STOP          =  4'd13; 
+       
+       
+
+
+always@(posedge clk or negedge rst)     // 最小单位值，0-24 
+    if(rst==1'b0)
+        cnt_clk<=8'd0;
+    else if(cnt_clk == cntclkmax-1)
+        cnt_clk<=8'd0;
+    else 
+        cnt_clk <=cnt_clk+1'b1;
+        
+always@(posedge clk or negedge rst)     //50为一周期
+    if(rst==1'b0) 
+        i2c_clk<=1'b1;
+    else if(cnt_clk == cntclkmax-1)        
+        i2c_clk <= ~i2c_clk;
+        
+always@(posedge i2c_clk or negedge rst)
+    if(rst==1'b0)
+        state <=IDLE;
+    else case(state)
+        IDLE    :
+            if(i2c_start == 1'b1)
+                state<=START1;
+            else 
+                state <=state;  
+        START1  :
+            if(cnt_i2c_clk==2'd3)
+                state <= SENDADDR1;
+            else 
+                state <= state;     
+        SENDADDR1 :
+            if((cnt_bit==3'd7)&&(cnt_i2c_clk==2'd3))
+                state <=ACK1;
+            else 
+                state<=state;
+        ACK1:
+            if((cnt_i2c_clk==2'd3)&&(ack==1'b0))
+                state<=SENDPOINTER;
+            else 
+                state<=state;       
+        SENDPOINTER:
+            if((cnt_bit==3'd7)&&(cnt_i2c_clk==2'd3))
+                state <=ACK2;
+             else 
+                state<=state;
+        ACK2:       
+            if((cnt_i2c_clk==2'd3)&&(rd_en==1'b1)&&(ack==1'b0))
+                state<=RESTART;
+            else 
+                state<=state;   
+        RESTART :
+            if(cnt_i2c_clk==2'd3)
+                state <= SENDADDR2;
+            else 
+                state <= state;
+        SENDADDR2:
+             if((cnt_bit==3'd7)&&(cnt_i2c_clk==2'd3))
+                state <=ACK3;
+             else 
+                state<=state;
+        ACK3:
+             if((cnt_i2c_clk==2'd3)&&(ack==1'b0))
+                state<=READHIGH;
+             else 
+                state<=state;   
+        READHIGH:
+             if((cnt_bit==3'd7)&&(cnt_i2c_clk==2'd3))  //Node 
+                state <=ACKM;
+             else 
+                state<=state;
+        ACKM :
+            if((cnt_i2c_clk==2'd3)&&(ack==1'b0))
+                state<=READLOW;
+            else 
+                state<=state;
+        READLOW    :
+            if((cnt_bit==3'd7)&&(cnt_i2c_clk==2'd3))
+                state <=NACK;
+            else 
+                state<=state;
+        NACK :
+             if((cnt_i2c_clk==2'd3)&&(ack==1'b1))
+                state<=STOP;
+             else 
+                state<=state;
+        STOP  :
+            if((cnt_bit==3'd3)&&(cnt_i2c_clk==2'd3))
+                state <=IDLE;
+            else 
+                state<=state;
+       default:state<=IDLE;
+    endcase
+
+always@(posedge i2c_clk or negedge rst)
+    if(rst==1'b0)
+        cnt_i2c_clk<=2'd0;
+    else if(cnt_i2c_clk_en == 1'b1)
+        cnt_i2c_clk <= cnt_i2c_clk + 1'b1;
+        
+always@(posedge i2c_clk or negedge rst)
+    if(rst==1'b0)
+        cnt_i2c_clk_en<=1'b0;
+    else if((state==STOP)&&(cnt_bit==3'd7)&&(cnt_i2c_clk==2'd3))
+        cnt_i2c_clk_en<=1'b0;
+    else if(i2c_start == 1'b1)
+        cnt_i2c_clk_en<=1'b1;
+
+always@(posedge i2c_clk or negedge rst)
+    if(rst==1'b0)
+        cnt_bit<=3'b0;
+    else if((state==IDLE)||(state==START1)||(state==ACK1)||(state==ACK2)||(state==ACK3)||(state==ACKM)||(state==NACK)||(state==RESTART))
+        cnt_bit<=3'd0;
+    else if((cnt_bit==3'd7)&&(cnt_i2c_clk==2'd3))  
+        cnt_bit<=3'd0;
+    else if((cnt_i2c_clk==2'd3)&&(state!=IDLE))
+        cnt_bit<=cnt_bit+1'b1;
+always@(*)
+    case(state)
+        IDLE    :
+            sda_out<=1'b1;
+                
+        START1  :
+            if(cnt_i2c_clk==2'd0)
+                sda_out<=1'b1;
+            else 
+                sda_out<=1'b0;
+                 
+        SENDADDR1 :
+            if(cnt_bit<=3'd6)
+                sda_out<=DEVICE_ADDR[6-cnt_bit];
+            else 
+                sda_out<=1'b0;   
+        ACK1:
+            sda_out<=1'b1;
+                
+        SENDPOINTER:
+            sda_out<=1'b0;
+           
+        ACK2:       
+            sda_out<=1'b1;
+              
+        RESTART :
+            if(cnt_i2c_clk==2'd1)
+                 sda_out<=1'b1;
+            else 
+                 sda_out<=1'b0;
+           
+        SENDADDR2:
+            if(cnt_bit<=3'd6)                    
+                sda_out<=DEVICE_ADDR[6-cnt_bit]; 
+            else                                 
+                sda_out<=1'b1;                   
+               
+        ACK3:
+            sda_out<=1'b1;
+        READHIGH:
+            sda_out<=1'b1;
+        ACKM :
+            sda_out<=1'b0;
+        READLOW    :
+            sda_out<=1'b1;
+        NACK :
+            sda_out<=1'b1;
+        STOP  :
+            if((cnt_bit==3'd0)&&(cnt_i2c_clk<2'd3))
+                sda_out<=1'b0;
+            else 
+                sda_out<=1'b1;
+              
+    default:
+            sda_out<=1'b1;
+  endcase  
+
+assign sda_en = ((state==READHIGH)||(state==READLOW)||(state==ACK1)||(state==ACK2)||(state==ACK3))? 1'b0 :1'b1;  
+
+always@(posedge clk)
+    case(state)
+        ACK1,ACK2,ACK3:
+            if(cnt_i2c_clk==2'd0)
+                ack<=sda_in;
+            else 
+                ack<=ack;
+        ACKM:
+            ack<=0;
+        default: ack<=1'b1;  
+    endcase
+
+ //assign sda_in = i2c_sda;
+  
+always@(posedge clk)
+    sda_in <=i2c_sda;
+
+always@(posedge clk)
+    case(state)
+        IDLE    :
+          rd_datahigh_reg <= 8'd0; 
+          
+        READHIGH:
+           rd_datahigh_reg[7-cnt_bit]<=sda_in;
+
+           
+    default:
+            rd_datahigh_reg<=rd_datahigh_reg;
+
+  endcase  
+  
+always@(posedge clk)
+      case(state)
+          IDLE    :
+            rd_datalow_reg <=8'd0; 
+          READLOW:                             
+            rd_datalow_reg[7-cnt_bit]<=sda_in;
+      default:
+             rd_datalow_reg<=rd_datalow_reg;
+      endcase
+  
+ 
+ always@(*)                                                                         
+     case(state)                                                                    
+         IDLE    :                                                                  
+             i2c_scl<=1'b1;                                                                      
+         START1  :                                                                  
+             if(cnt_i2c_clk==2'd3)                                                  
+                 i2c_scl<=1'b0;             
+             else                                                                   
+                 i2c_scl<=1'b1;                                                    
+                                                                                    
+         SENDADDR1, ACK1,SENDPOINTER,ACK2,RESTART,SENDADDR2,ACK3,READHIGH,ACKM,READLOW, NACK :                                                                     
+             if((cnt_i2c_clk==2'd1) ||(cnt_i2c_clk==2'd2))
+                i2c_scl<=1'b1;    
+             else                  
+                i2c_scl<=1'b0;                                                             
+         STOP  :                                                                    
+             if((cnt_bit==3'd0) &&(cnt_i2c_clk==2'd0))                                
+                 i2c_scl<=1'b0;                                                     
+             else                                                                   
+                 i2c_scl<=1'b1;                                                     
+
+     default:                                                                       
+             i2c_scl<=1'b1;                                                         
+   endcase             
+   
+assign i2c_sda = (sda_en == 1'b1)?  sda_out : 1'bz;
+
+always@(posedge i2c_clk or negedge rst)
+    if(rst==1'b0)
+        i2c_end<=1'b0;
+    else if((state==STOP)&&(cnt_bit==3'd3)&&(cnt_i2c_clk==2'd3))
+        i2c_end <=1'b1;
+    else 
+        i2c_end <=1'b0;
+        
+ always@(posedge i2c_clk or negedge rst)
+    if(rst==1'b0)    
+        rd_data<= 16'd0;
+    else if((state==READHIGH)&&(cnt_bit==3'd7)&&(cnt_i2c_clk==2'd3))   
+        rd_data[14:7]<= rd_datahigh_reg;
+    else if((state==READLOW)&&(cnt_bit==3'd7)&&(cnt_i2c_clk==2'd3))   
+        rd_data[6:0] <= rd_datalow_reg[7:1];
+    else rd_data<=rd_data;
+        
+        
+        
+   
+endmodule                                                             
