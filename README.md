@@ -14,3 +14,4 @@ IIC_sim.txt 中为IIC的仿真代码<br>
 上面四个代码均在Vidado中编译<br> 
 
 PrintMax30205.txt为软件部分，实现将温度打印到电脑屏幕上，需要使用XilinxSDK编译，注意要把代码里面 XPAR_MAX30205539L_0_S00_AXI_BASEADDR 更换为实际的元器件寄存器地址（"xparameters.h"头文件中有） <br> 
+如对上面文件的使用还有疑问欢迎+联系方式询问（有空就回复，备注来意即可）
